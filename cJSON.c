@@ -250,7 +250,13 @@ static cJSON *cJSON_New_Item(const internal_hooks * const hooks)
 }
 
 /* Delete a cJSON structure. */
-CJSON_PUBLIC(void) cJSON_Delete(cJSON *item)
+void cJSON_Delete_rec(cJSON *item, size_t depth);
+
+CJSON_PUBLIC(void) cJSON_Delete(cJSON *item) {
+    cJSON_Delete_rec(item, 0);
+}
+
+void cJSON_Delete_rec(cJSON *item, size_t depth)
 {
     cJSON *next = NULL;
     while (item != NULL)
@@ -258,7 +264,12 @@ CJSON_PUBLIC(void) cJSON_Delete(cJSON *item)
         next = item->next;
         if (!(item->type & cJSON_IsReference) && (item->child != NULL))
         {
-            cJSON_Delete(item->child);
+            if(depth >= CJSON_CIRCULAR_LIMIT) 
+            {
+                /* We likely already have create double free. */
+                return;
+            }
+            cJSON_Delete_rec(item->child, depth+1);
         }
         if (!(item->type & cJSON_IsReference) && (item->valuestring != NULL))
         {
